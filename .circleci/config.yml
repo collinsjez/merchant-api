@@ -1,0 +1,63 @@
+
+version: 2.1
+jobs:
+  build:
+    working_directory: ~/merchant-service
+    docker:
+      - image: circleci/node:12.11.1
+    steps:
+      - checkout
+      - run:
+          name: update-npm
+          command: 'sudo npm install -g npm@latest'
+      - restore_cache:
+          key: dependency-cache-{{checksum "package-lock.json"}}
+      - run:
+          name: install-npm
+          command: npm install
+      - save_cache:
+          key: dependency-cache-{{checksum "package-lock.json"}}
+          paths:
+            - ./node_modules
+  deploy:
+    machine:
+      image: ubuntu-1604:202007-01
+      docker_layer_caching: false
+    steps:
+      - checkout
+      - checkout
+      - run:
+          name: set deployment image name env
+          command: |
+            echo 'export BITBUCKET_COMMIT_SHORT=$(echo $CIRCLE_SHA1 | cut -c1-7 )' >> IMG_ENV
+            echo 'export IMAGE_NAME=$FN_ARTIFACT_REGISTRY_PATH/$CIRCLE_PROJECT_REPONAME:$CIRCLE_BRANCH-$BITBUCKET_COMMIT_SHORT' >> IMG_ENV
+            echo -n $FN_ARTIFACT_REGISTRY | base64 --decode > FN_ARTIFACT_REGISTRY.json
+      - run:
+          name: Decode ssh
+          command: |
+            mkdir -p ssh
+            echo -n "$SRE_SH_SSH" | base64 --decode > ssh/id_rsa
+      - run:
+          name: build docker image
+          command: |
+            source IMG_ENV
+            docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWD
+            docker build --no-cache -t $IMAGE_NAME -f Dockerfile .
+      - run:
+          name: docker push artifact registry
+          command: |
+            source IMG_ENV
+            gcloud auth activate-service-account --key-file FN_ARTIFACT_REGISTRY.json
+            gcloud auth configure-docker europe-docker.pkg.dev
+            cat FN_ARTIFACT_REGISTRY.json | docker login -u _json_key --password-stdin https://europe-docker.pkg.dev
+            docker push $IMAGE_NAME
+      - run: exit 0
+     
+workflows:
+  version: 2
+  build-and-deploy:
+    jobs:
+      - build
+      - deploy:
+          requires:
+            - build
