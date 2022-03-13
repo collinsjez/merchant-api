@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "target": "es2016",
+        "lib": ["es6", "dom"],
+        "module": "commonjs",
+        "outDir": "./dist",
+        "strict": true,
+        "esModuleInterop": true,
+        //"inlineSourceMap": true,
+        "sourceMap": false,
+        "strictPropertyInitialization": false,
+        "moduleResolution": "node",
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "noImplicitAny": false
+    },
+    "compileOnSave": false,
+    "exclude": [
+      "node_modules"
+    ]
+}
